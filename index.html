@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>萬壑松風：流泉（小按鈕手機版）</title>
+  <style>
+    :root{
+      --frame:#3e2723;
+      --paper:#f3e5dc;
+      --btn: rgba(62, 39, 35, 0.30);
+      --btnActive: rgba(62, 39, 35, 0.65);
+      --blue:#1565c0;
+      --blue2:#0d47a1;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      background:#4e342e;
+      height:100svh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-family:"Microsoft JhengHei", system-ui, -apple-system, sans-serif;
+      overflow:hidden;
+      touch-action:none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    #gameContainer{
+      position:relative;
+      background:var(--paper);
+      border:10px solid var(--frame);
+      border-radius:18px;
+      box-shadow:0 0 40px rgba(0,0,0,0.55);
+      overflow:hidden;
+      width:min(92vw, 520px);
+      height:min(92svh, 820px);
+    }
+
+    canvas{
+      display:block;
+      width:100%;
+      height:100%;
+      background:var(--paper);
+    }
+
+    /* HUD */
+    #ui-layer{
+      position:absolute;
+      top:12px;
+      left:12px;
+      right:12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      z-index:10;
+      pointer-events:none;
+    }
+    #scoreBox{
+      background:rgba(255,255,255,0.78);
+      border:2px solid var(--frame);
+      border-radius:12px;
+      padding:8px 12px;
+      font-weight:900;
+      font-size:18px;
+      color:#1a237e;
+    }
+
+    /* ===== 控制區：小按鈕版（仍適合老人） ===== */
+    #controls{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      align-items:flex-end;
+      z-index:30;
+      pointer-events:auto;
+    }
+
+    /* 左右按鈕（小） */
+    .ctrl-btn{
+      flex:1;
+      height:64px;              /* 小一點 */
+      background:var(--btn);
+      border:3px solid var(--frame);
+      border-radius:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:32px;           /* 小一點 */
+      font-weight:900;
+      color:#fff;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:none;
+      letter-spacing:1px;
+    }
+    .ctrl-btn:active,
+    .ctrl-btn.is-hold{
+      background:var(--btnActive);
+      transform: translateY(1px);
+    }
+
+    /* 右側功能按鈕（小） */
+    #sideBtns{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      width:112px;              /* 小一點 */
+    }
+    .side-btn{
+      width:112px;
+      height:38px;
+      border:none;
+      border-radius:12px;
+      font-size:16px;
+      font-weight:900;
+      color:#fff;
+      background:var(--blue);
+      box-shadow:0 8px 18px rgba(0,0,0,0.22);
+      touch-action:none;
+    }
+    .side-btn:active{
+      background:var(--blue2);
+      transform: translateY(1px);
+    }
+
+    /* 開始/結束畫面 */
+    .modal{
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%);
+      width:min(92%, 360px);
+      background:rgba(255,255,255,0.95);
+      border:2px solid var(--frame);
+      border-radius:16px;
+      padding:18px 16px;
+      text-align:center;
+      z-index:100;
+    }
+    .modal h1{
+      margin:0 0 8px 0;
+      color:var(--frame);
+      font-size:24px;
+    }
+    .modal p{
+      margin:10px 0;
+      font-size:16px;
+      color:#444;
+      line-height:1.4;
+    }
+    .modal .bigAction{
+      width:100%;
+      height:52px;
+      border:none;
+      border-radius:14px;
+      font-size:20px;
+      font-weight:900;
+      color:#fff;
+      background:var(--blue);
+      margin-top:10px;
+      touch-action:none;
+    }
+    .modal .bigAction:active{
+      background:var(--blue2);
+      transform: translateY(1px);
+    }
+
+    #game-over-screen{ display:none; }
+
+    .hint{
+      display:inline-block;
+      background:#fff;
+      border:1px solid #ccc;
+      border-radius:10px;
+      padding:6px 10px;
+      font-weight:900;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+      <div id="scoreBox">生機值：<span id="score">0</span></div>
+    </div>
+
+    <div id="controls">
+      <div id="btnLeft" class="ctrl-btn" aria-label="向左">←</div>
+
+      <div id="sideBtns">
+        <button id="btnPause" class="side-btn" type="button">暫停</button>
+        <button id="btnRestart" class="side-btn" type="button">重來</button>
+      </div>
+
+      <div id="btnRight" class="ctrl-btn" aria-label="向右">→</div>
+    </div>
+
+    <div id="start-screen" class="modal">
+      <h1>萬壑松風：流泉</h1>
+      <p>按住下方 <span class="hint">←</span> / <span class="hint">→</span><br/>讓水流左右移動</p>
+      <p>避開 <b>山石</b>，經過 <b>松林</b> 加分</p>
+      <button class="bigAction" id="btnStart" type="button">開始流淌</button>
+    </div>
+
+    <div id="game-over-screen" class="modal">
+      <h1>水流阻斷</h1>
+      <p>遭遇堅硬岩石，水流無法通過。</p>
+      <p>最終生機：<span id="final-score">0</span></p>
+      <button class="bigAction" id="btnAgain" type="button">重新發源</button>
+    </div>
+  </div>
+
+<script>
+/* ====== 畫布自適應容器（手機清晰） ====== */
+const container = document.getElementById('gameContainer');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas(){
+  const rect = container.getBoundingClientRect();
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resizeCanvas, {passive:true});
+resizeCanvas();
+
+/* ====== 遊戲狀態 ====== */
+let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER
+let score = 0;
+let frameCount = 0;
+let speed = 4;
+
+const player = {
+  x: 0,
+  y: 0,
+  radius: 9,
+  trail: []
+};
+
+let obstacles = [];
+let bonuses = [];
+let particles = [];
+
+const keys = { left:false, right:false };
+
+/* ====== 老人友善：按住就一直走（pointer 同時支援觸控/滑鼠） ====== */
+const btnL = document.getElementById('btnLeft');
+const btnR = document.getElementById('btnRight');
+
+function hold(btn, dir){
+  const onDown = (e)=>{
+    e.preventDefault();
+    keys[dir] = true;
+    btn.classList.add('is-hold');
+    try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+  };
+  const onUp = (e)=>{
+    e.preventDefault();
+    keys[dir] = false;
+    btn.classList.remove('is-hold');
+    try{ btn.releasePointerCapture(e.pointerId); }catch(_){}
+  };
+  btn.addEventListener('pointerdown', onDown);
+  btn.addEventListener('pointerup', onUp);
+  btn.addEventListener('pointercancel', onUp);
+  btn.addEventListener('pointerleave', onUp);
+  btn.addEventListener('pointerout', onUp);
+}
+hold(btnL, 'left');
+hold(btnR, 'right');
+
+/* 也支援鍵盤（電腦可玩） */
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'ArrowLeft') keys.left = true;
+  if (e.key === 'ArrowRight') keys.right = true;
+});
+document.addEventListener('keyup', (e)=>{
+  if (e.key === 'ArrowLeft') keys.left = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+});
+
+/* ====== UI：開始/暫停/重來 ====== */
+const startScreen = document.getElementById('start-screen');
+const overScreen  = document.getElementById('game-over-screen');
+const scoreEl = document.getElementById('score');
+const finalEl = document.getElementById('final-score');
+
+document.getElementById('btnStart').addEventListener('click', initGame);
+document.getElementById('btnAgain').addEventListener('click', initGame);
+
+const btnPause = document.getElementById('btnPause');
+btnPause.addEventListener('click', ()=>{
+  if (gameState === 'PLAYING'){
+    gameState = 'PAUSED';
+    btnPause.textContent = '繼續';
+  } else if (gameState === 'PAUSED'){
+    gameState = 'PLAYING';
+    btnPause.textContent = '暫停';
+    loop();
+  }
+});
+
+document.getElementById('btnRestart').addEventListener('click', initGame);
+
+function initGame(){
+  gameState = 'PLAYING';
+  score = 0;
+  speed = 4;
+  frameCount = 0;
+
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  player.x = w / 2;
+  player.y = h * 0.75;
+  player.trail = [];
+
+  obstacles = [];
+  bonuses = [];
+  particles = [];
+
+  scoreEl.textContent = score;
+  startScreen.style.display = 'none';
+  overScreen.style.display = 'none';
+  btnPause.textContent = '暫停';
+
+  for (let i=0;i<50;i++){
+    player.trail.push({x: player.x, y: player.y + i*(speed*0.6)});
+  }
+
+  loop();
+}
+
+/* ====== 生成物件 ====== */
+function spawnObjects(){
+  const interval = Math.max(26, 60 - Math.min(30, Math.floor(score/50)));
+  if (frameCount % interval !== 0) return;
+
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  const type = Math.random();
+  const objX = Math.random() * (w - 60) + 30;
+  const objY = -50;
+
+  if (type > 0.4){
+    const size = 34 + Math.random() * 34;
+    obstacles.push({ x: objX, y: objY, w: size, h: size*0.8, type:'rock' });
+  } else {
+    const size = 46;
+    bonuses.push({ x: objX, y: objY, w: size, h: size, collected:false, type:'pine' });
+  }
+}
+
+/* ====== 更新 ====== */
+function update(){
+  if (gameState !== 'PLAYING') return;
+  frameCount++;
+
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  const moveSpeed = 5.2;
+  if (keys.left) player.x -= moveSpeed;
+  if (keys.right) player.x += moveSpeed;
+
+  const margin = 16;
+  if (player.x < margin) player.x = margin;
+  if (player.x > w - margin) player.x = w - margin;
+
+  player.trail.unshift({x: player.x, y: player.y});
+  if (player.trail.length > 90) player.trail.pop();
+
+  for (const p of player.trail){
+    p.y -= speed;
+  }
+
+  spawnObjects();
+
+  for (let i=obstacles.length-1;i>=0;i--){
+    const obs = obstacles[i];
+    obs.y += speed;
+
+    const dx = player.x - obs.x;
+    const dy = player.y - obs.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (dist < player.radius + obs.w/2.6) return gameOver();
+    if (obs.y > h + 120) obstacles.splice(i, 1);
+  }
+
+  for (let i=bonuses.length-1;i>=0;i--){
+    const pine = bonuses[i];
+    pine.y += speed;
+
+    const dx = player.x - pine.x;
+    const dy = player.y - pine.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (!pine.collected && dist < 44){
+      pine.collected = true;
+      score += 10;
+      scoreEl.textContent = score;
+      createWaterSplash(pine.x, pine.y);
+
+      if (score % 100 === 0) speed += 0.25;
+    }
+
+    if (pine.y > h + 120) bonuses.splice(i, 1);
+  }
+
+  updateParticles();
+}
+
+/* ====== 粒子 ====== */
+function createWaterSplash(x,y){
+  for(let i=0;i<10;i++){
+    particles.push({
+      x,y,
+      vx:(Math.random()-0.5)*5,
+      vy:(Math.random()-0.5)*5,
+      life:28
+    });
+  }
+}
+function updateParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life<=0) particles.splice(i,1);
+  }
+}
+
+/* ====== 繪圖 ====== */
+function draw(){
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  ctx.fillStyle = '#f3e5dc';
+  ctx.fillRect(0,0,w,h);
+
+  // 山脈
+  ctx.fillStyle = '#e6d6c8';
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(w*0.33, h*0.62);
+  ctx.lineTo(w*0.62, h*0.74);
+  ctx.lineTo(w, h*0.52);
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
+
+  // 水流尾巴
+  if (player.trail.length > 1){
+    ctx.beginPath();
+    ctx.moveTo(player.trail[0].x, player.trail[0].y);
+    for(let i=1;i<player.trail.length;i++){
+      ctx.lineTo(player.trail[i].x, player.trail[i].y);
+    }
+    ctx.strokeStyle = '#29b6f6';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+  }
+
+  // 松林
+  for(const p of bonuses){
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(p.x-4, p.y, 8, 22);
+
+    ctx.fillStyle = p.collected ? '#81c784' : '#1b5e20';
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y-24);
+    ctx.lineTo(p.x+22, p.y+12);
+    ctx.lineTo(p.x-22, p.y+12);
+    ctx.closePath();
+    ctx.fill();
+
+    if (p.collected){
+      ctx.fillStyle = '#f9a825';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('+10', p.x + 18, p.y - 18);
+    }
+  }
+
+  // 岩石
+  for(const r of obstacles){
+    ctx.fillStyle = '#212121';
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y - r.h/2);
+    ctx.lineTo(r.x + r.w/2, r.y);
+    ctx.lineTo(r.x + r.w/3, r.y + r.h/2);
+    ctx.lineTo(r.x - r.w/2, r.y + r.h/2);
+    ctx.lineTo(r.x - r.w/3, r.y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#757575';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(r.x - 12, r.y);
+    ctx.lineTo(r.x + 12, r.y + 6);
+    ctx.stroke();
+  }
+
+  // 玩家
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // 粒子
+  ctx.fillStyle = '#81d4fa';
+  for(const p of particles){
+    ctx.fillRect(p.x, p.y, 3, 3);
+  }
+
+  // 暫停遮罩
+  if (gameState === 'PAUSED'){
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 30px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('已暫停', w/2, h/2);
+    ctx.textAlign = 'left';
+  }
+}
+
+/* ====== 結束 ====== */
+function gameOver(){
+  gameState = 'GAMEOVER';
+  finalEl.textContent = score;
+  overScreen.style.display = 'block';
+}
+
+/* ====== 主迴圈 ====== */
+function loop(){
+  if (gameState === 'PLAYING' || gameState === 'PAUSED'){
+    if (gameState === 'PLAYING') update();
+    draw();
+    requestAnimationFrame(loop);
+  } else {
+    draw();
+  }
+}
+
+// 初始畫一次
+draw();
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
